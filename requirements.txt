@@ -1,0 +1,14 @@
+pandas
+numpy
+scipy
+scikit-learn
+phik
+dython
+networkx
+python-igraph
+plotly
+dash
+python-dotenv
+pytest
+black
+isort
