@@ -15,25 +15,55 @@ Layers
 
 ## 1. Data Layer
 
+## 1. Data Layer
+
 ### Files
-- data/loader.py
-- data/schema.py
+- data/loader.py  
+- data/schema/registry.py  
+- data/schema/subtypes.py  
+- data/schema/inference_builders.py  
+- data/schema/inference.py  
+- data/schema/metadata_builders.py  
+- data/schema/metadata.py  
+- data/schema/schema.py  
 
 ### Responsibilities
-- Load CSV, Parquet, SQL, and API sources.
-- Infer column types:
+- Load datasets from supported sources (currently CSV and Parquet; extensible to SQL and API).
+- Infer column types using a registry‑driven system:
   - numeric (continuous, discrete)
   - categorical (nominal, ordinal)
   - boolean
   - datetime
-- Normalize formats and produce a `NormalizedDataFrame`:
-  - `.df` — pandas DataFrame
-  - `.schema` — dict: column → inferred type
-  - `.metadata` — dict: column → descriptive stats
+  - text (short, long)
+  - structured (JSON: object, array)
+- Build a `NormalizedDataFrame` composed of:
+  - `.df` — the raw pandas DataFrame (no semantic mutation)
+  - `.schema` — dict: column → inferred base type + subtype
+  - `.metadata` — dict: column → descriptive statistics
+
+### Internal Structure
+The Data Layer is organized into two subsystems:
+
+#### Loader Subsystem (`data/`)
+Handles dataset ingestion.  
+Selects the appropriate loader based on file extension.  
+Designed to be easily extended to additional formats.
+
+#### Schema Subsystem (`data/schema/`)
+Responsible for type inference and metadata extraction.  
+Includes:
+- a type registry (base types, subtypes, priorities)
+- subtype definitions
+- inference builders for each type family
+- metadata builders for type‑specific statistics
+- the orchestration logic that produces the final `NormalizedDataFrame`
 
 ### Design Rules
 - Do not mutate original semantics.
-- Keep loaders pure and registerable by extension.
+- Keep loaders pure and extension‑based.
+- Keep inference deterministic and registry‑driven.
+- Keep metadata JSON‑serializable.
+
 
 ---
 
