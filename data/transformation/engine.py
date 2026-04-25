@@ -20,22 +20,36 @@ class EngineContext:
     metadata: dict[str, dict]
 
     def merge(self, result: TransformationResult) -> "EngineContext":
+        # Immutable copies
+        new_df = self.df.copy()
+        new_schema = dict(self.schema)
+        new_metadata = dict(self.metadata)
+
         # Drop columns
         for col in result.drop_columns:
-            if col in self.df.columns:
-                self.df = self.df.drop(columns=[col])
-            self.schema.pop(col, None)
-            self.metadata.pop(col, None)
+            if col not in new_df.columns:
+                raise RuntimeError(
+                    f"Transformation attempted to drop non-existent column '{col}'."
+                )
+            new_df = new_df.drop(columns=[col])
+            new_schema.pop(col, None)
+            new_metadata.pop(col, None)
 
         # Add new columns (overwrite forbidden)
         for col_name, series in result.new_columns.items():
-            if col_name in self.df.columns:
+            if col_name in new_df.columns:
                 raise RuntimeError(
                     f"Transformation attempted to create column '{col_name}' "
                     f"which already exists (overwrite is forbidden)."
                 )
 
-            self.df[col_name] = series
+            if len(series) != len(new_df):
+                raise RuntimeError(
+                    f"New column '{col_name}' has length {len(series)} "
+                    f"but df has length {len(new_df)}."
+                )
+
+            new_df[col_name] = series
 
             # Schema: use provided or infer
             if col_name in result.new_schema:
@@ -43,29 +57,56 @@ class EngineContext:
             else:
                 col_schema = infer_type(series)
 
-            self.schema[col_name] = col_schema
+            new_schema[col_name] = col_schema
 
             # Metadata: use provided or build
             if col_name in result.new_metadata:
                 col_metadata = result.new_metadata[col_name]
             else:
                 col_metadata = build_metadata(
-                    self.df[[col_name]], {col_name: col_schema}
+                    new_df[[col_name]], {col_name: col_schema}
                 )[col_name]
 
-            self.metadata[col_name] = col_metadata
+            if not isinstance(col_metadata, dict):
+                raise RuntimeError(
+                    f"Metadata for new column '{col_name}' must be a dict."
+                )
+
+            new_metadata[col_name] = col_metadata
 
         # Apply any schema updates for existing columns
         for col_name, col_schema in result.new_schema.items():
-            if col_name in self.df.columns and col_name not in result.new_columns:
-                self.schema[col_name] = col_schema
+            if col_name in result.new_columns:
+                continue
+            if col_name in new_df.columns:
+                inferred = infer_type(new_df[col_name])
+
+                # Compare schema "base" types (your SchemaEntry model)
+                if inferred.base != col_schema.base:
+                    raise RuntimeError(
+                        f"Schema update for '{col_name}' incompatible with actual dtype: "
+                        f"{inferred.base} vs {col_schema.base}."
+                    )
+
+                new_schema[col_name] = col_schema
 
         # Apply any metadata updates for existing columns
         for col_name, col_metadata in result.new_metadata.items():
-            if col_name in self.df.columns and col_name not in result.new_columns:
-                self.metadata[col_name] = col_metadata
+            if col_name in result.new_columns:
+                continue
+            if col_name in new_df.columns:
+                if not isinstance(col_metadata, dict):
+                    raise RuntimeError(
+                        f"Metadata update for '{col_name}' must be a dict."
+                    )
+                new_metadata[col_name] = col_metadata
 
-        return self
+        # Return new context
+        return EngineContext(
+            df=new_df,
+            schema=new_schema,
+            metadata=new_metadata,
+        )
 
 
 def _apply_single_step(
