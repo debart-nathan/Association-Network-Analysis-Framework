@@ -2,9 +2,9 @@ from dataclasses import dataclass
 from typing import Dict
 import pandas as pd
 
-from .inference import infer_type
-from .metadata import build_metadata
-from .schema_types import SchemaEntry  #
+from data.schema.inference import infer_type
+from data.schema.metadata import build_metadata
+from data.schema.schema_types import SchemaEntry  #
 
 @dataclass(frozen=True)
 class NormalizedDataFrame:

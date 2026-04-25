@@ -1,5 +1,5 @@
 import pandas as pd
-from .registry import registry
+from data.schema.registry import registry
 
 
 def build_metadata(df, schema):

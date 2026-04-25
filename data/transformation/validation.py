@@ -1,5 +1,5 @@
-from .registry import TRANSFORM_REGISTRY
-from .plan import TransformationPlan, ColumnTransformSpec, ColumnTransformStep, DerivedSpec
+from data.transformation.registry import TRANSFORM_REGISTRY
+from data.transformation.plan import TransformationPlan, ColumnTransformSpec, ColumnTransformStep, DerivedSpec
 
 
 def validate_column_spec(spec: ColumnTransformSpec):

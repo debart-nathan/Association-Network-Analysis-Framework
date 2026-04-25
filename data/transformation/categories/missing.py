@@ -1,5 +1,5 @@
-from ..registry import TRANSFORM_REGISTRY, TransformationDefinition
-from ...schema.schema_types import SchemaEntry
+from data.transformation.registry import TRANSFORM_REGISTRY, TransformationDefinition
+from data.schema.schema_types import SchemaEntry
 import pandas as pd
 from sklearn.impute import KNNImputer
 

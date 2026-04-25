@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Callable, Dict, Optional, List ,Any
 import pandas as pd
-from ..schema.schema_types import SchemaEntry
+from data.schema.schema_types import SchemaEntry
 
 
 ColumnFn = Callable[

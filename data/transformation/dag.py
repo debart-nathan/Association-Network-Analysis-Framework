@@ -1,5 +1,5 @@
 from typing import List, Dict, Set
-from .plan import ColumnTransformStep
+from data.transformation.plan import ColumnTransformStep
 
 
 def toposort_steps(steps: List[ColumnTransformStep]) -> List[ColumnTransformStep]:

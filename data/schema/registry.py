@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Callable, Dict, Optional, Any, Tuple
 
-from .subtypes import Subtype, SubtypeDefinition
-from .inference_builders import (
+from data.schema.subtypes import Subtype, SubtypeDefinition
+from data.schema.inference_builders import (
     infer_boolean,
     infer_datetime,
     infer_numeric,
@@ -10,7 +10,7 @@ from .inference_builders import (
     infer_text,
     infer_structured,
 )
-from .metadata_builders import (
+from data.schema.metadata_builders import (
     build_boolean_metadata,
     build_datetime_metadata,
     build_numeric_metadata,

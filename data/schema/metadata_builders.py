@@ -1,5 +1,5 @@
 import numpy as np
-from ...utils.metrics import (
+from utils.metrics import (
     safe_entropy,
 )
 

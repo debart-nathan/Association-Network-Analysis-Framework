@@ -1,9 +1,9 @@
 from typing import Any, Dict
 import pandas as pd
 
-from .schema_types import SchemaEntry, SchemaCandidate
-from .registry import registry
-from .subtypes import Subtype
+from data.schema.schema_types import SchemaEntry, SchemaCandidate
+from data.schema.registry import registry
+from data.schema.subtypes import Subtype
 
 
 def infer_type(series: pd.Series, **kwargs) -> SchemaEntry:

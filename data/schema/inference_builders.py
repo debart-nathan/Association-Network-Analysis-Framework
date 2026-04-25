@@ -4,9 +4,9 @@ from typing import Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from .subtypes import Subtype
+from data.schema.subtypes import Subtype
 
-from ...utils.metrics import (
+from utils.metrics import (
     cardinality_ratio,
     avg_length,
     safe_entropy,
