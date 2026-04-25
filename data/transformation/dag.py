@@ -1,48 +1,58 @@
 from typing import List, Dict, Set
-from data.transformation.plan import ColumnTransformStep
+
+from data.transformation.plan import TransformStep
 
 
-def toposort_steps(steps: List[ColumnTransformStep]) -> List[ColumnTransformStep]:
+def toposort_steps(steps: List[TransformStep]) -> List[TransformStep]:
     """
-    Topologically sort steps based on their 'after' dependencies (by category).
+    Topologically sort TransformStep objects based on their 'after' dependencies.
 
-    Each step can declare `after=["missing", "outliers"]`, meaning:
-    all steps whose category is in that list must run before this one.
+    Each step can declare:
+        after=["step_a", "step_b"]
+
+    meaning:
+        step_a and step_b must run BEFORE this step.
 
     If there is a cycle, a ValueError is raised.
     """
-    # Group steps by category for dependency resolution
-    by_category: Dict[str, List[ColumnTransformStep]] = {}
-    for s in steps:
-        by_category.setdefault(s.category, []).append(s)
+    # 1. Build  index map
+    id_to_index: Dict[str, int] = {}
+    for i, step in enumerate(steps):
+        if step.id in id_to_index:
+            raise ValueError(f"Duplicate step id detected: '{step.id}'")
+        id_to_index[step.id] = i
 
-    # Build graph: node = index in steps list
     n = len(steps)
+
+    # 2. Build dependency graph
     deps: Dict[int, Set[int]] = {i: set() for i in range(n)}
 
     for i, step in enumerate(steps):
-        after = step.after or []
-        for cat in after:
-            for j, other in enumerate(steps):
-                if other.category == cat:
-                    deps[i].add(j)
+        after_ids = step.after or []
+        for dep_id in after_ids:
+            if dep_id not in id_to_index:
+                raise ValueError(
+                    f"Step '{step.id}' depends on unknown step id '{dep_id}'"
+                )
+            deps[i].add(id_to_index[dep_id])
 
-    # Kahn's algorithm
-    result: List[ColumnTransformStep] = []
+    # 3. Kahn's algorithm for topological sorting
+    result: List[TransformStep] = []
     no_incoming = [i for i in range(n) if not deps[i]]
 
     while no_incoming:
         i = no_incoming.pop()
         result.append(steps[i])
 
-        # Remove edges
+        # Remove edges from i → others
         for j in range(n):
             if i in deps[j]:
                 deps[j].remove(i)
                 if not deps[j]:
                     no_incoming.append(j)
 
+    # 4. Detect cycles
     if any(deps[i] for i in range(n)):
-        raise ValueError("Cycle detected in column transformation dependencies")
+        raise ValueError("Cycle detected in transformation dependencies")
 
     return result

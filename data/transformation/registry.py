@@ -1,15 +1,23 @@
-from dataclasses import dataclass
-from typing import Callable, Dict, Optional, List ,Any
+from dataclasses import dataclass, field
+from typing import Callable, Dict, Optional, List, Any
+
 import pandas as pd
 from data.schema.schema_types import SchemaEntry
 
 
-ColumnFn = Callable[
-    [pd.Series | pd.DataFrame, SchemaEntry | None, dict, dict],
-    pd.Series | pd.DataFrame,
-]
+@dataclass(frozen=True)
+class TransformationResult:
+    new_columns: Dict[str, pd.Series] = field(default_factory=dict)
+    drop_columns: List[str] = field(default_factory=list)
+    new_schema: Dict[str, SchemaEntry] = field(default_factory=dict)
+    new_metadata: Dict[str, dict] = field(default_factory=dict)
+    terminal: bool = False
 
-TransformationFn = ColumnFn
+
+TransformationFn = Callable[
+    [Any, List[str], Dict[str, Any]],
+    TransformationResult,
+]
 
 
 @dataclass(frozen=True)
@@ -20,7 +28,6 @@ class TransformationDefinition:
     description: str = ""
     is_derived: bool = False
 
-    # NEW
     allowed_base: Optional[List[str]] = None
     allowed_subtype: Optional[List[str]] = None
     blocked_base: Optional[List[str]] = None
@@ -38,7 +45,6 @@ class TransformationDefinition:
         if schema is None:
             return
 
-        # Blocked types take priority
         if self.blocked_base and schema.base in self.blocked_base:
             raise TypeError(
                 f"Transformation '{self.name}' cannot be applied to base type '{schema.base}'."
@@ -49,7 +55,6 @@ class TransformationDefinition:
                 f"Transformation '{self.name}' cannot be applied to subtype '{schema.subtype}'."
             )
 
-        # Allowed types (if specified)
         if self.allowed_base and schema.base not in self.allowed_base:
             raise TypeError(
                 f"Transformation '{self.name}' only applies to base types {self.allowed_base}, "
@@ -61,7 +66,6 @@ class TransformationDefinition:
                 f"Transformation '{self.name}' only applies to subtypes {self.allowed_subtype}, "
                 f"but column is '{schema.subtype}'."
             )
-
 
 
 class TransformationRegistry:

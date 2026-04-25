@@ -3,47 +3,26 @@ from typing import Dict, Any, List, Optional
 
 
 @dataclass(frozen=True)
-class ColumnTransformStep:
+class TransformStep:
     """
-    Single transformation step for a column.
+    Single transformation step (column, multi-column, or derived).
 
-    category: registry category (e.g. "missing", "scaling", "encoding", "datetime", ...)
-    name:     transformation name within that category
-    params:   parameter dict passed to the transformation
-    after:    optional list of categories that must run before this step
-              (used for DAG-based ordering)
+    id:       unique identifier for this step (used for DAG-based ordering).
+    label:    optional UI label for this step.
+    category: registry category (e.g. "missing", "scaling", "encoding", "datetime", "derived", ...)
+    name:     transformation name within that category.
+    inputs:   list of input column names this step depends on.
+    params:   parameter dict passed to the transformation.
+    after:    optional list of step IDs that must run before this step
+              (used for DAG-based ordering).
     """
+    id: str
     label: Optional[str]
     category: str
     name: str
+    inputs: List[str]
     params: Dict[str, Any]
     after: Optional[List[str]] = None
-
-
-@dataclass(frozen=True)
-class ColumnTransformSpec:
-    """
-    Declarative specification of all transformations to apply to a single column.
-
-    steps: ordered or dependency-resolved list of ColumnTransformStep.
-    """
-    steps: List[ColumnTransformStep]
-
-
-@dataclass(frozen=True)
-class DerivedSpec:
-    """
-    Declarative specification of a derived (multi-column) transformation.
-
-    new_col: name of the resulting column (if the transform returns a Series).
-             If the transform returns a DataFrame, this can be ignored or used
-             as a prefix by the transform itself.
-    name:    transformation name in the "derived" category.
-    params:  parameter dict passed to the transformation.
-    """
-    new_col: str
-    name: str
-    params: Dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -51,8 +30,10 @@ class TransformationPlan:
     """
     Full transformation plan.
 
-    columns: mapping from column name to its column-level spec.
-    derived: list of multi-column / expression-based transformations.
+    steps: global list of TransformStep, ordered via DAG (toposort) using `after`.
+           Each step can be:
+             - single-column (inputs=["col"])
+             - multi-column (inputs=["col1", "col2", ...])
+             - derived (e.g. category="derived", arbitrary inputs)
     """
-    columns: Dict[str, ColumnTransformSpec]
-    derived: Optional[List[DerivedSpec]] = None
+    steps: List[TransformStep]
