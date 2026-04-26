@@ -88,7 +88,6 @@ Handles all **user‑decidable data transformations** that must occur *before* c
 - winsorization  
 - clipping  
 - log transform  
-- leave as‑is  
 
 #### C. Scaling / Normalization
 - z‑score  
