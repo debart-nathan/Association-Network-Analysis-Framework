@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Callable, Dict, Optional, List, Any
+from typing import Callable, Dict, Optional, List, Any, Tuple
 
 import pandas as pd
 from data.schema.schema_types import SchemaEntry
@@ -25,8 +25,10 @@ class TransformationDefinition:
     name: str
     fn: TransformationFn
     allowed_params: Dict[str, Any]
-    description: str = ""
-    is_derived: bool = False
+    description: str
+    is_derived: bool
+    output_schema: Optional[Tuple[str, str]] = None
+
 
     allowed_base: Optional[List[str]] = None
     allowed_subtype: Optional[List[str]] = None

@@ -1,5 +1,5 @@
 import pandas as pd
-from data.schema.registry import registry
+from data.schema.registry import TYPE_REGISTRY
 
 
 def build_metadata(df, schema):
@@ -10,7 +10,7 @@ def build_metadata(df, schema):
         subtype = entry.subtype
 
         # get the correct metadata builder from registry
-        td = registry.get(base)
+        td = TYPE_REGISTRY.get(base)
         builder = td.metadata_builder
 
         original = df[col]

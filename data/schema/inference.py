@@ -2,7 +2,7 @@ from typing import Any, Dict
 import pandas as pd
 
 from data.schema.schema_types import SchemaEntry, SchemaCandidate
-from data.schema.registry import registry
+from data.schema.registry import TYPE_REGISTRY
 from data.schema.subtypes import Subtype
 
 
@@ -15,7 +15,7 @@ def infer_type(series: pd.Series, **kwargs) -> SchemaEntry:
     candidates = []
 
     # run inference for each registered type
-    for name, td in registry.all():
+    for name, td in TYPE_REGISTRY.all():
         result = td.infer(s, **kwargs)
         if result is None:
             continue
@@ -62,7 +62,7 @@ def infer_type(series: pd.Series, **kwargs) -> SchemaEntry:
         )
 
     # fallback to unknown
-    td = registry.get("unknown")
+    td = TYPE_REGISTRY.get("unknown")
     return SchemaEntry(
         base=td.base,
         subtype=td.subtypes[Subtype.NONE].name,

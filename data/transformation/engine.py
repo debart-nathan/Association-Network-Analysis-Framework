@@ -11,6 +11,7 @@ from data.schema.normalized import NormalizedDataFrame
 from data.schema.schema_types import SchemaEntry
 from data.schema.inference import infer_type
 from data.schema.metadata import build_metadata
+from data.schema.registry import TYPE_REGISTRY, get_subtype
 
 
 @dataclass
@@ -19,7 +20,11 @@ class EngineContext:
     schema: dict[str, SchemaEntry]
     metadata: dict[str, dict]
 
-    def merge(self, result: TransformationResult) -> "EngineContext":
+    def merge(
+        self,
+        result: TransformationResult,
+        definition: Optional[TransformationDefinition] = None,
+    ) -> "EngineContext":
         # Immutable copies
         new_df = self.df.copy()
         new_schema = dict(self.schema)
@@ -49,17 +54,34 @@ class EngineContext:
                     f"but df has length {len(new_df)}."
                 )
 
-            new_df[col_name] = series
-
-            # Schema: use provided or infer
+            # Schema: provided → output_schema → infer
             if col_name in result.new_schema:
                 col_schema = result.new_schema[col_name]
+
+            elif definition is not None and getattr(definition, "output_schema", None):
+                base, subtype_name = definition.output_schema
+
+                col_schema = SchemaEntry(
+                    base=base,
+                    subtype=subtype_name,   # keep string, consistent with infer_type
+                    confidence=1.0,
+                    candidates=[],
+                    forced=True,
+                )
+
             else:
                 col_schema = infer_type(series)
 
+            # Validate base exists
+            TYPE_REGISTRY.get(col_schema.base)
+
+            # Cast series according to schema (registry-driven)
+            series = _apply_output_schema_casting(series, col_schema)
+
+            new_df[col_name] = series
             new_schema[col_name] = col_schema
 
-            # Metadata: use provided or build
+            # Metadata: provided or build
             if col_name in result.new_metadata:
                 col_metadata = result.new_metadata[col_name]
             else:
@@ -74,23 +96,23 @@ class EngineContext:
 
             new_metadata[col_name] = col_metadata
 
-        # Apply any schema updates for existing columns
+        # Apply schema updates for existing columns
         for col_name, col_schema in result.new_schema.items():
             if col_name in result.new_columns:
                 continue
             if col_name in new_df.columns:
                 inferred = infer_type(new_df[col_name])
 
-                # Compare schema "base" types (your SchemaEntry model)
                 if inferred.base != col_schema.base:
                     raise RuntimeError(
                         f"Schema update for '{col_name}' incompatible with actual dtype: "
                         f"{inferred.base} vs {col_schema.base}."
                     )
 
+                TYPE_REGISTRY.get(col_schema.base)
                 new_schema[col_name] = col_schema
 
-        # Apply any metadata updates for existing columns
+        # Apply metadata updates for existing columns
         for col_name, col_metadata in result.new_metadata.items():
             if col_name in result.new_columns:
                 continue
@@ -101,7 +123,6 @@ class EngineContext:
                     )
                 new_metadata[col_name] = col_metadata
 
-        # Return new context
         return EngineContext(
             df=new_df,
             schema=new_schema,
@@ -164,9 +185,25 @@ def apply_transformations(
 
     for step in ordered_steps:
         result, definition = _apply_single_step(ctx, step)
-        ctx = ctx.merge(result)
+        ctx = ctx.merge(result, definition)
 
         if result.terminal:
             break
 
     return NormalizedDataFrame(df=ctx.df, schema=ctx.schema, metadata=ctx.metadata)
+
+
+def _apply_output_schema_casting(series: pd.Series, schema: SchemaEntry) -> pd.Series:
+    type_def = TYPE_REGISTRY.get(schema.base)
+
+    # Convert subtype string → Subtype enum
+    subtype_enum = get_subtype(schema.base, schema.subtype)
+
+    if getattr(type_def, "cast", None) is None:
+        return series
+
+    if not callable(type_def.cast):
+        raise RuntimeError(
+            f"Type definition for base '{schema.base}' has non-callable 'cast' attribute."
+        )
+    return type_def.cast(series, subtype_enum)
