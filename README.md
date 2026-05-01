@@ -3,12 +3,6 @@
 **Purpose**  
 A reusable, dataset‑agnostic Python backend and Dash UI for building association networks from tabular data. The project separates concerns into three layers: Data, Associations, Network, and exposes a thin Dash frontend.
 
-**Goals**
-- Normalize arbitrary tabular datasets (CSV, Parquet, SQL, API).  
-- Auto‑select and compute appropriate association metrics for numeric, categorical, and mixed data.  
-- Build weighted graphs and compute network analytics.  
-- Provide a reusable backend that can be used from notebooks, CLI, or a Dash app.
-
 ---
 
 ## Quickstart
@@ -68,7 +62,7 @@ You already have a .env. Ensure it contains at least:
 |------------|----------------------------------|--------------------|
 | APP_ENV    | runtime environment              | development        |
 | SECRET_KEY | Dash secret for sessions         | change_me_secure   |
-| DATA_DIR   | default folder for datasets      | ./data             |
+| DATA_DIR   | default folder for datasets      | ./input             |
 | CACHE_DIR  | cache for association matrices   | ./cache            |
 | LOG_LEVEL  | logging verbosity                | INFO               |
 
