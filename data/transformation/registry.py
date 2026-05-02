@@ -16,7 +16,7 @@ class TransformationResult:
 
 TransformationFn = Callable[
     [Any, List[str], Dict[str, Any]],
-    TransformationResult,
+    TransformationResult| None,
 ]
 
 
@@ -30,8 +30,8 @@ class TransformationDefinition:
     output_schema: Optional[Tuple[str, str]] = None
 
 
-    allowed_base: Optional[List[str]] = None
-    allowed_subtype: Optional[List[str]] = None
+    allowed_base: Optional[List[str | Tuple[str, ...]]] = None
+    allowed_subtype: Optional[List[str | Tuple[str, ...]]] = None
     blocked_base: Optional[List[str]] = None
     blocked_subtype: Optional[List[str]] = None
 
@@ -43,31 +43,34 @@ class TransformationDefinition:
                 f"Allowed: {list(self.allowed_params.keys())}"
             )
 
-    def validate_schema(self, schema: SchemaEntry | None):
+    def validate_schema(self, schema: SchemaEntry | None, position: int = 0):
         if schema is None:
             return
 
+        # Blocked types
         if self.blocked_base and schema.base in self.blocked_base:
-            raise TypeError(
-                f"Transformation '{self.name}' cannot be applied to base type '{schema.base}'."
-            )
-
+            raise TypeError(...)
         if self.blocked_subtype and schema.subtype in self.blocked_subtype:
-            raise TypeError(
-                f"Transformation '{self.name}' cannot be applied to subtype '{schema.subtype}'."
-            )
+            raise TypeError(...)
 
-        if self.allowed_base and schema.base not in self.allowed_base:
-            raise TypeError(
-                f"Transformation '{self.name}' only applies to base types {self.allowed_base}, "
-                f"but column is '{schema.base}'."
-            )
+        # Allowed types
+        if self.allowed_base:
+            ok = False
+            for rule in self.allowed_base:
+                if isinstance(rule, str):
+                    # Single-column rule
+                    if schema.base == rule:
+                        ok = True
+                else:
+                    # Tuple rule for multi-input transforms
+                    if position < len(rule) and schema.base == rule[position]:
+                        ok = True
 
-        if self.allowed_subtype and schema.subtype not in self.allowed_subtype:
-            raise TypeError(
-                f"Transformation '{self.name}' only applies to subtypes {self.allowed_subtype}, "
-                f"but column is '{schema.subtype}'."
-            )
+            if not ok:
+                raise TypeError(
+                    f"Column at position {position} has base '{schema.base}', "
+                    f"but allowed bases are {self.allowed_base}"
+                )
 
 
 class TransformationRegistry:

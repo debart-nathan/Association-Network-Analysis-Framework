@@ -1,11 +1,26 @@
 from typing import List, Dict, Set
+from dataclasses import dataclass
 
-from data.transformation.plan import TransformStep
+from data.plan.base_step import BaseStep
 
 
-def toposort_steps(steps: List[TransformStep]) -> List[TransformStep]:
+@dataclass(frozen=True)
+class DataPlan:
     """
-    Topologically sort TransformStep objects based on their 'after' dependencies.
+    Full data plan.
+
+    steps: global list of steps, ordered via DAG (toposort) using `after`.
+           Steps can be:
+             - SchemaCastStep
+             - TransformStep
+             - FilterStep
+    """
+    steps: List[BaseStep]
+
+
+def toposort_steps(steps: List[BaseStep]) -> List[BaseStep]:
+    """
+    Topologically sort BaseStep objects based on their 'after' dependencies.
 
     Each step can declare:
         after=["step_a", "step_b"]
@@ -15,7 +30,8 @@ def toposort_steps(steps: List[TransformStep]) -> List[TransformStep]:
 
     If there is a cycle, a ValueError is raised.
     """
-    # 1. Build  index map
+
+    # 1. Build index map
     id_to_index: Dict[str, int] = {}
     for i, step in enumerate(steps):
         if step.id in id_to_index:
@@ -37,7 +53,7 @@ def toposort_steps(steps: List[TransformStep]) -> List[TransformStep]:
             deps[i].add(id_to_index[dep_id])
 
     # 3. Kahn's algorithm for topological sorting
-    result: List[TransformStep] = []
+    result: List[BaseStep] = []
     no_incoming = [i for i in range(n) if not deps[i]]
 
     while no_incoming:
@@ -53,6 +69,6 @@ def toposort_steps(steps: List[TransformStep]) -> List[TransformStep]:
 
     # 4. Detect cycles
     if any(deps[i] for i in range(n)):
-        raise ValueError("Cycle detected in transformation dependencies")
+        raise ValueError("Cycle detected in plan dependencies")
 
     return result

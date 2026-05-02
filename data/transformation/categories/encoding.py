@@ -9,18 +9,26 @@ from data.transformation.registry import (
 )
 
 
+# ============================================================
+# ONE-HOT ENCODING
+# ============================================================
+
 def one_hot_encoder_fn(ctx, inputs, params):
-    # One-hot encoding always takes exactly one input column
     col = inputs[0]
     series = ctx.df[col]
 
-    encoded = pd.get_dummies(series)
+    dummy_na = params.get("dummy_na", False)
 
-    new_cols = {f"{col}_{c}": encoded[c] for c in encoded.columns}
+    encoded = pd.get_dummies(series, dummy_na=dummy_na)
+
+    new_cols = {
+        f"{col}_{c}": encoded[c]
+        for c in encoded.columns
+    }
 
     return TransformationResult(
         new_columns=new_cols,
-        terminal=True
+        terminal=True,
     )
 
 
@@ -29,37 +37,58 @@ TRANSFORM_REGISTRY.register(
     TransformationDefinition(
         name="one_hot_encode",
         fn=one_hot_encoder_fn,
-        allowed_params={},
+        allowed_params={"dummy_na": bool},
         description="Perform one-hot encoding on a categorical column.",
         is_derived=False,
         allowed_base=["categorical", "text", "boolean"],
+        output_schema=("numeric", "discrete"),
     )
 )
+
+
+# ============================================================
+# ORDINAL ENCODING
+# ============================================================
 
 def ordinal_encoder_fn(ctx, inputs, params):
     col = inputs[0]
     series = ctx.df[col]
 
-    # If user provides an explicit order
+    # Handle NaN explicitly
+    series_filled = series.fillna("__missing__")
+
     if "order" in params:
-        categories = [params["order"]]
-        encoder = sk_preprocessing.OrdinalEncoder(categories=categories)
+        order = params["order"]
+
+        # Validate that all categories are covered
+        unique_vals = set(series_filled.unique())
+        missing = unique_vals - set(order) - {"__missing__"}
+        if missing:
+            raise ValueError(
+                f"Ordinal encoding: categories {missing} not present in provided order."
+            )
+
+        categories = [order + ["__missing__"]]
+        encoder = sk_preprocessing.OrdinalEncoder(
+            categories=categories,
+            handle_unknown="use_encoded_value",
+            unknown_value=-1,
+        )
     else:
-        encoder = sk_preprocessing.OrdinalEncoder()
+        encoder = sk_preprocessing.OrdinalEncoder(
+            handle_unknown="use_encoded_value",
+            unknown_value=-1,
+        )
 
-    encoded = np.asarray(
-        encoder.fit_transform(series.values.reshape(-1, 1)).flatten()
-    )
-
+    encoded = encoder.fit_transform(series_filled.values.reshape(-1, 1)).flatten()
 
     new_col_name = f"{col}_ordinal"
-    new_col = pd.Series(encoded, name=new_col_name)
+    new_col = pd.Series(encoded, index=series.index, name=new_col_name)
 
     return TransformationResult(
         new_columns={new_col_name: new_col},
-        terminal=True
+        terminal=True,
     )
-
 
 
 TRANSFORM_REGISTRY.register(
@@ -68,26 +97,39 @@ TRANSFORM_REGISTRY.register(
         name="ordinal_encode",
         fn=ordinal_encoder_fn,
         allowed_params={"order": list},
-        description="Perform ordinal encoding on a categorical column.",
+        description="Perform ordinal encoding on a categorical column. "
+                    "If 'order' is provided, it defines the category order.",
         is_derived=False,
         allowed_base=["categorical", "text", "boolean"],
+        output_schema=("numeric", "ordinal"),
     )
 )
+
+
+# ============================================================
+# LABEL ENCODING
+# ============================================================
 
 def label_encoder_fn(ctx, inputs, params):
     col = inputs[0]
     series = ctx.df[col]
 
+    # Replace NaN with explicit category
+    series_filled = series.fillna("__missing__")
+
     encoder = sk_preprocessing.LabelEncoder()
-    encoded = np.asarray(encoder.fit_transform(series))
+    encoded = encoder.fit_transform(series_filled)
 
     new_col_name = f"{col}_label"
-    new_col = pd.Series(encoded, name=new_col_name)
+    encoded = np.asarray(encoded)
+    new_col = pd.Series(encoded, index=ctx.df.index, name=new_col_name)
+
 
     return TransformationResult(
         new_columns={new_col_name: new_col},
-        terminal=True
+        terminal=True,
     )
+
 
 TRANSFORM_REGISTRY.register(
     "encoding",
@@ -95,8 +137,10 @@ TRANSFORM_REGISTRY.register(
         name="label_encode",
         fn=label_encoder_fn,
         allowed_params={},
-        description="Perform label encoding on a categorical column.",
+        description="Perform label encoding on a categorical column. "
+                    "Produces arbitrary integer codes with no ordinal meaning.",
         is_derived=False,
         allowed_base=["categorical", "text", "boolean"],
+        output_schema=("numeric", "discrete"),
     )
 )

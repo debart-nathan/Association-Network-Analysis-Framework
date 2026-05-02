@@ -15,10 +15,15 @@ def drop_empty_fn(ctx, inputs, params):
 
     treat_empty_string = params.get("treat_empty_string", True)
     if treat_empty_string:
-        s = s.replace("", pd.NA)
+        mask = ~(s.isna() | (s == ""))
+    else:
+        mask = ~s.isna()
+
+    new_col = pd.Series(mask.astype(int), index=s.index, name=f"{col}_not_empty")
 
     return TransformationResult(
-        new_columns={f"{col}_drop_empty": s.dropna()}
+        new_columns={f"{col}_not_empty": new_col},
+        terminal=True,
     )
 
 
@@ -29,6 +34,7 @@ TRANSFORM_REGISTRY.register(
         fn=drop_empty_fn,
         allowed_params={"treat_empty_string": bool},
         description="Drop rows where the column is empty or NaN.",
+        is_derived=True,
     )
 )
 
@@ -55,6 +61,7 @@ TRANSFORM_REGISTRY.register(
         description="Fill missing values with the column mean.",
         allowed_base=["numeric"],
         allowed_subtype=["continuous", "discrete"],
+        is_derived=True,
     )
 )
 
@@ -81,6 +88,7 @@ TRANSFORM_REGISTRY.register(
         description="Fill missing values with the column median.",
         allowed_base=["numeric"],
         allowed_subtype=["continuous", "discrete"],
+        is_derived=True,
     )
 )
 
@@ -108,6 +116,7 @@ TRANSFORM_REGISTRY.register(
         description="Fill missing values with the column mode.",
         allowed_base=["numeric"],
         allowed_subtype=["continuous", "discrete"],
+        is_derived=True,
     )
 )
 
@@ -171,5 +180,6 @@ TRANSFORM_REGISTRY.register(
         fn=impute_constant_fn,
         allowed_params={"constant_value": object},
         description="Fill missing values with a constant value.",
+        is_derived=True,
     )
 )
