@@ -162,6 +162,12 @@ def _apply_transform_step(ctx: EngineContext, step: BaseStep):
             f"Transform '{step.category}:{step.name}' missing columns: {missing}"
         )
 
+    for pos, col in enumerate(step.inputs):
+        definition.validate_schema(ctx.schema.get(col), position=pos)
+        raise RuntimeError(
+            f"Transform '{step.category}:{step.name}' missing columns: {missing}"
+        )
+
     result = definition.fn(ctx, step.inputs, step.params)
 
     if not isinstance(result, TransformationResult):

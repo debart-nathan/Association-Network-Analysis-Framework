@@ -1,5 +1,6 @@
 from data.transformation.registry import TRANSFORM_REGISTRY
 from data.filtering.registry import FILTER_REGISTRY
+from data.schema.registry import TYPE_REGISTRY, get_subtype
 from data.plan.base_step import BaseStep
 from data.plan.transform_step import TransformStep
 from data.plan.filter_step import FilterStep
@@ -70,6 +71,12 @@ def validate_step(step: BaseStep):
             raise ValueError(
                 f"SchemaCastStep '{step.id}' must define 'base' and 'subtype' params."
             )
+
+        # Validate target type exists
+        base = step.params["base"]
+        subtype = step.params["subtype"]
+        TYPE_REGISTRY.get(base)
+        get_subtype(base, subtype)
 
         return
 

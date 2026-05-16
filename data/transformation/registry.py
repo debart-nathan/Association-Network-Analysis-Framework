@@ -49,27 +49,47 @@ class TransformationDefinition:
 
         # Blocked types
         if self.blocked_base and schema.base in self.blocked_base:
-            raise TypeError(...)
+            raise TypeError(
+                f"Column at position {position} has base '{schema.base}', "
+                f"which is blocked for transformation '{self.name}'."
+            )
         if self.blocked_subtype and schema.subtype in self.blocked_subtype:
-            raise TypeError(...)
+            raise TypeError(
+                f"Column at position {position} has subtype '{schema.subtype}', "
+                f"which is blocked for transformation '{self.name}'."
+            )
 
         # Allowed types
         if self.allowed_base:
             ok = False
             for rule in self.allowed_base:
                 if isinstance(rule, str):
-                    # Single-column rule
                     if schema.base == rule:
                         ok = True
                 else:
-                    # Tuple rule for multi-input transforms
                     if position < len(rule) and schema.base == rule[position]:
                         ok = True
 
             if not ok:
                 raise TypeError(
                     f"Column at position {position} has base '{schema.base}', "
-                    f"but allowed bases are {self.allowed_base}"
+                    f"but allowed bases are {self.allowed_base}."
+                )
+
+        if self.allowed_subtype:
+            ok = False
+            for rule in self.allowed_subtype:
+                if isinstance(rule, str):
+                    if schema.subtype == rule:
+                        ok = True
+                else:
+                    if position < len(rule) and schema.subtype == rule[position]:
+                        ok = True
+
+            if not ok:
+                raise TypeError(
+                    f"Column at position {position} has subtype '{schema.subtype}', "
+                    f"but allowed subtypes are {self.allowed_subtype}."
                 )
 
 
