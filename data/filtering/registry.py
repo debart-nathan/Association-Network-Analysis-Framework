@@ -1,7 +1,9 @@
+from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Callable, Optional, List, Dict, Any
+from typing import TYPE_CHECKING, Callable, Optional, List, Dict, Any
 
-from data.plan.engine import EngineContext
+if TYPE_CHECKING:
+    from data.plan.engine import EngineContext
 
 
 #-----------------------------------------------------------
@@ -91,87 +93,9 @@ class FilterRegistry:
 
 FILTER_REGISTRY = FilterRegistry()
 
-
-# ============================================================
-# Example built‑in filters (optional)
-# ============================================================
-
-# -------------------------
-# Row filter: drop rows where column is null
-# -------------------------
-
-def _validate_drop_nulls(params: Dict[str, Any]):
-    if params:
-        raise ValueError("drop_nulls filter takes no parameters.")
+# Import filtering category modules to populate the registry.
+# This keeps filter registration self-contained when the registry is imported.
+import data.filtering.categories  # noqa: F401
 
 
-def _filter_drop_nulls(ctx: EngineContext, inputs: List[str], params: Dict[str, Any]) -> FilterResult:
-    col = inputs[0]
-    mask = ctx.df[col].notna()
-    return FilterResult(
-        drop_rows=mask.tolist(),
-        drop_columns=[],
-        new_schema={},
-        new_metadata={},
-    )
 
-
-FILTER_REGISTRY.register(
-    category="row",
-    name="drop_nulls",
-    definition=FilterDefinition(
-        fn=_filter_drop_nulls,
-        validate_params=_validate_drop_nulls,
-    ),
-)
-
-
-# -------------------------
-# Row filter: keep rows where column > threshold
-# -------------------------
-
-def _validate_threshold(params: Dict[str, Any]):
-    if "threshold" not in params:
-        raise ValueError("threshold filter requires param 'threshold'.")
-
-
-def _filter_threshold(ctx: EngineContext, inputs: List[str], params: Dict[str, Any]) -> FilterResult:
-    col = inputs[0]
-    thr = params["threshold"]
-    mask = ctx.df[col] > thr
-    return FilterResult(drop_rows=mask.tolist())
-
-
-FILTER_REGISTRY.register(
-    category="row",
-    name="greater_than",
-    definition=FilterDefinition(
-        fn=_filter_threshold,
-        validate_params=_validate_threshold,
-    ),
-)
-
-
-# -------------------------
-# Column filter: drop columns by prefix
-# -------------------------
-
-def _validate_prefix(params: Dict[str, Any]):
-    if "prefix" not in params:
-        raise ValueError("drop_by_prefix requires param 'prefix'.")
-
-
-def _filter_drop_by_prefix(ctx: EngineContext, inputs: List[str], params: Dict[str, Any]) -> FilterResult:
-    prefix = params["prefix"]
-    cols = [c for c in ctx.df.columns if c.startswith(prefix)]
-    return FilterResult(drop_columns=cols)
-
-
-FILTER_REGISTRY.register(
-    category="column",
-    name="drop_by_prefix",
-    definition=FilterDefinition(
-        fn=_filter_drop_by_prefix,
-        validate_params=_validate_prefix,
-    ),
-)
