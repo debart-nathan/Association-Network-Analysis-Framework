@@ -119,3 +119,7 @@ class TransformationRegistry:
 
 
 TRANSFORM_REGISTRY = TransformationRegistry()
+
+# Import transformation category modules to populate the registry.
+# This keeps transform registration self-contained when the registry is imported.
+import data.transformation.categories  # noqa: F401
